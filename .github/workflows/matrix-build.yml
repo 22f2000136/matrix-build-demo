@@ -1,0 +1,87 @@
+name: Matrix Build with Artifacts
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  matrix-build:
+    name: Build on Node ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [14, 16, 18, 20]  # 4 variants for thorough testing
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: matrix-e1511e6
+        run: |
+          echo "🚀 Starting matrix build for Node.js version ${{ matrix.node-version }}"
+          echo "Build timestamp: $(date)"
+          echo "Runner OS: ${{ runner.os }}"
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      
+      - name: Display Node.js version
+        run: |
+          echo "Node.js version:"
+          node --version
+          echo "NPM version:"
+          npm --version
+      
+      - name: Generate build artifact
+        run: |
+          mkdir -p build
+          cat > build/build-info.json << EOF
+          {
+            "node_version": "${{ matrix.node-version }}",
+            "build_timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "runner_os": "${{ runner.os }}",
+            "github_sha": "${{ github.sha }}",
+            "github_ref": "${{ github.ref }}",
+            "workflow_run_id": "${{ github.run_id }}",
+            "workflow_run_number": "${{ github.run_number }}"
+          }
+          EOF
+          
+          echo "Build output for Node.js v${{ matrix.node-version }}" > build/output.txt
+          echo "Generated at: $(date)" >> build/output.txt
+          echo "Platform: ${{ runner.os }}" >> build/output.txt
+          
+          # Create a sample JavaScript file
+          cat > build/hello.js << EOF
+          console.log('Hello from Node.js ${{ matrix.node-version }}!');
+          console.log('Build time: $(date)');
+          EOF
+          
+          # Run the JavaScript file
+          node build/hello.js
+      
+      - name: List build artifacts
+        run: |
+          echo "📦 Build artifacts generated:"
+          ls -lah build/
+          echo ""
+          echo "📄 Contents of build-info.json:"
+          cat build/build-info.json
+      
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-e1511e6-node${{ matrix.node-version }}
+          path: build/
+          retention-days: 30
+      
+      - name: Build summary
+        run: |
+          echo "✅ Build completed successfully for Node.js ${{ matrix.node-version }}"
+          echo "Artifact uploaded: build-e1511e6-node${{ matrix.node-version }}"
